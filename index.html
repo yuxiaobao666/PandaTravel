@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+    <title>🐼 熊猫旅行日记</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <style>
+        /* ===== 全局重置 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        :root {
+            --green-50: #f0f7f0;
+            --green-100: #dce8dc;
+            --green-200: #b8d0b8;
+            --green-300: #8fb58f;
+            --green-400: #6a9a6a;
+            --green-500: #4c7f4c;
+            --green-600: #3a663a;
+            --green-700: #2b4f2b;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+            --radius: 14px;
+            --radius-sm: 10px;
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        html,
+        body {
+            height: 100%;
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-800);
+            line-height: 1.5;
+            overflow: hidden;
+        }
+        /* ===== 应用容器 (模拟页面切换) ===== */
+        .app-container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            max-width: 480px;
+            margin: 0 auto;
+            background: var(--gray-50);
+            position: relative;
+            overflow: hidden;
+        }
+        /* ===== 页面视图 ===== */
+        .page {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--gray-50);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+            overflow-y: auto;
+            padding: 16px 16px 24px;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+        }
+        .page-hidden {
+            transform: translateX(100%);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .page-visible {
+            transform: translateX(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        /* ===== 列表页 ===== */
+        #listPage {
+            z-index: 10;
+            padding-bottom: calc(24px + var(--safe-bottom));
+        }
+        .app-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+            padding-top: 4px;
+            gap: 10px;
+        }
+        .app-header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--green-700);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .app-header h1 i {
+            color: var(--green-500);
+            font-size: 24px;
+        }
+        .header-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 40px;
+            font-weight: 500;
+            font-size: 13px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            background: white;
+            color: var(--gray-700);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--gray-200);
+            text-decoration: none;
+            min-height: 40px;
+            touch-action: manipulation;
+        }
+        .btn:active {
+            transform: scale(0.96);
+        }
+        .btn-primary {
+            background: var(--green-500);
+            color: white;
+            border-color: var(--green-500);
+        }
+        .btn-primary:active {
+            background: var(--green-600);
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--gray-300);
+        }
+        .btn-outline:active {
+            background: var(--gray-100);
+        }
+        .btn-success {
+            background: var(--green-600);
+            color: white;
+            border-color: var(--green-600);
+        }
+        .btn-danger-outline {
+            background: transparent;
+            border: 1px solid #fca5a5;
+            color: #b91c1c;
+        }
+        .btn-danger-outline:active {
+            background: #fee2e2;
+        }
+        .btn-sm {
+            padding: 5px 12px;
+            font-size: 12px;
+            min-height: 32px;
+        }
+        .btn-block {
+            width: 100%;
+            justify-content: center;
+        }
+        /* ===== 统计卡片 ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 12px 8px;
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-sm);
+            text-align: center;
+            border-left: 3px solid var(--green-400);
+        }
+        .stat-card .label {
+            font-size: 10px;
+            color: var(--gray-500);
+            font-weight: 500;
+            letter-spacing: 0.2px;
+        }
+        .stat-card .value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--green-700);
+            margin-top: 2px;
+        }
+        .stat-card .sub {
+            font-size: 9px;
+            color: var(--gray-400);
+        }
+        /* ===== 旅行卡片列表 ===== */
+        .trip-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            padding-bottom: 12px;
+        }
+        .trip-card {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+            padding: 16px 16px 14px;
+            border: 1px solid var(--gray-100);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            touch-action: manipulation;
+        }
+        .trip-card:active {
+            transform: scale(0.98);
+            background: var(--gray-50);
+        }
+        .trip-card .top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 6px;
+        }
+        .trip-card .destination {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--green-700);
+        }
+        .trip-card .status-badge {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 12px;
+            border-radius: 40px;
+            background: var(--gray-200);
+            color: var(--gray-600);
+            letter-spacing: 0.2px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            margin-left: 8px;
+        }
+        .status-badge.planning {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .status-badge.ongoing {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status-badge.done {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .trip-card .meta {
+            font-size: 13px;
+            color: var(--gray-500);
+            margin: 4px 0 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 14px;
+        }
+        .trip-card .meta i {
+            width: 16px;
+            color: var(--green-400);
+        }
+        .trip-card .footer-stats {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--gray-600);
+            border-top: 1px solid var(--gray-100);
+            padding-top: 10px;
+        }
+        .trip-card .footer-stats span i {
+            margin-right: 4px;
+            color: var(--green-500);
+            width: 14px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--gray-400);
+            background: white;
+            border-radius: var(--radius);
+            border: 2px dashed var(--gray-200);
+        }
+        .empty-state i {
+            font-size: 40px;
+            color: var(--green-300);
+            margin-bottom: 10px;
+        }
+        /* ===== 详情页 ===== */
+        #detailPage {
+            z-index: 20;
+            padding: 0 0 calc(20px + var(--safe-bottom));
+            background: var(--gray-50);
+        }
+        .detail-scroll {
+            padding: 12px 16px 20px;
+            overflow-y: auto;
+            height: 100%;
+            -webkit-overflow-scrolling: touch;
+        }
+        .detail-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0 16px;
+            position: sticky;
+            top: 0;
+            background: var(--gray-50);
+            z-index: 5;
+        }
+        .detail-header .back-btn {
+            background: none;
+            border: none;
+            font-size: 22px;
+            color: var(--gray-600);
+            cursor: pointer;
+            padding: 8px 4px 8px 0;
+            touch-action: manipulation;
+        }
+        .detail-header .back-btn:active {
+            color: var(--green-600);
+        }
+        .detail-header h2 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--green-700);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .detail-header .header-actions {
+            flex-shrink: 0;
+        }
+        .detail-header .header-actions .btn {
+            min-height: 34px;
+            padding: 4px 12px;
+            font-size: 12px;
+        }
+        /* 详情卡片区块 */
+        .detail-section {
+            background: white;
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 14px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--gray-100);
+        }
+        .detail-section .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--green-700);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .detail-section .section-title i {
+            color: var(--green-400);
+            width: 20px;
+        }
+        /* 表单控件（手机优化） */
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--gray-700);
+            margin-bottom: 4px;
+        }
+        .form-group .hint {
+            font-size: 11px;
+            color: var(--gray-400);
+            font-weight: 400;
+            margin-left: 4px;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        input[type="datetime-local"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-sm);
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            transition: border-color 0.15s;
+            background: white;
+            color: var(--gray-800);
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--green-400);
+            box-shadow: 0 0 0 3px rgba(74, 127, 74, 0.12);
+        }
+        textarea {
+            resize: vertical;
+            min-height: 56px;
+            font-size: 14px;
+        }
+        select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+        /* 出行段 */
+        .leg-item {
+            background: var(--gray-50);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            margin-bottom: 10px;
+            border: 1px solid var(--gray-200);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 10px;
+            align-items: center;
+        }
+        .leg-item .leg-field {
+            flex: 1 0 calc(50% - 10px);
+            min-width: 120px;
+        }
+        .leg-item .leg-field label {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--gray-500);
+            display: block;
+            margin-bottom: 1px;
+        }
+        .leg-item .leg-field input,
+        .leg-item .leg-field select {
+            padding: 6px 10px;
+            font-size: 13px;
+            border: 1px solid var(--gray-200);
+            border-radius: 6px;
+            width: 100%;
+            background: white;
+        }
+        .leg-item .leg-remove {
+            background: none;
+            border: none;
+            color: var(--gray-400);
+            cursor: pointer;
+            font-size: 20px;
+            padding: 4px 8px;
+            touch-action: manipulation;
+            flex-shrink: 0;
+        }
+        .leg-item .leg-remove:active {
+            color: #b91c1c;
+        }
+        /* 清单勾选 */
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 12px;
+            background: var(--gray-50);
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--gray-200);
+            max-height: 180px;
+            overflow-y: auto;
+        }
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 400;
+            font-size: 14px;
+            cursor: pointer;
+            color: var(--gray-700);
+            padding: 4px 0;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--green-500);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .inline-flex {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .inline-flex input {
+            flex: 1;
+            min-width: 100px;
+        }
+        .mt-1 {
+            margin-top: 6px;
+        }
+        .mt-2 {
+            margin-top: 12px;
+        }
+        .mb-1 {
+            margin-bottom: 6px;
+        }
+        .gap-1 {
+            gap: 6px;
+        }
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        /* 模板标签 */
+        .template-badge {
+            background: var(--green-100);
+            padding: 3px 12px;
+            border-radius: 40px;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--green-700);
+            cursor: pointer;
+            transition: all 0.15s;
+            border: 1px solid transparent;
+            display: inline-block;
+            touch-action: manipulation;
+        }
+        .template-badge:active {
+            background: var(--green-200);
+        }
+        /* 熊猫打卡列表 */
+        .panda-entry {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px 10px;
+            background: var(--gray-50);
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 8px;
+            border: 1px solid var(--gray-200);
+        }
+        .panda-entry .panda-name {
+            font-weight: 600;
+            color: var(--green-700);
+            font-size: 15px;
+        }
+        .panda-entry .panda-time {
+            color: var(--gray-500);
+            font-size: 12px;
+            margin-left: auto;
+        }
+        .panda-entry .panda-remove {
+            background: none;
+            border: none;
+            color: var(--gray-400);
+            cursor: pointer;
+            font-size: 18px;
+            padding: 4px 8px;
+            touch-action: manipulation;
+        }
+        .panda-entry .panda-remove:active {
+            color: #b91c1c;
+        }
+        /* 操作按钮组 */
+        .trip-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 6px;
+            padding-top: 16px;
+            border-top: 1px solid var(--gray-200);
+        }
+        .trip-actions .btn {
+            flex: 1 0 calc(50% - 10px);
+            min-height: 44px;
+        }
+        .text-muted {
+            color: var(--gray-400);
+        }
+        .text-sm {
+            font-size: 12px;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .hidden {
+            display: none !important;
+        }
+        /* ===== 手机适配 ===== */
+        @media (max-width: 400px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .app-header h1 {
+                font-size: 19px;
+            }
+            .btn {
+                font-size: 12px;
+                padding: 6px 12px;
+                min-height: 36px;
+            }
+            .detail-header h2 {
+                font-size: 16px;
+            }
+        }
+        @media (min-width: 481px) {
+            .app-container {
+                border-left: 1px solid var(--gray-200);
+                border-right: 1px solid var(--gray-200);
+                box-shadow: var(--shadow-md);
+            }
+        }
+        /* 滚动条美化 */
+        .page::-webkit-scrollbar {
+            width: 4px;
+        }
+        .page::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .page::-webkit-scrollbar-thumb {
+            background: var(--green-300);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- ====== 列表页 ====== -->
+        <div id="listPage" class="page page-visible">
+            <header class="app-header">
+                <h1><i class="fas fa-paw"></i> 熊猫日记</h1>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="newTripBtn"><i class="fas fa-plus"></i> 新建</button>
+                    <button class="btn btn-outline" id="importBtn"><i class="fas fa-upload"></i></button>
+                    <button class="btn btn-outline" id="exportBtn"><i class="fas fa-download"></i></button>
+                </div>
+            </header>
+
+            <!-- 统计 -->
+            <section class="stats-grid" id="statsGrid">
+                <div class="stat-card"><div class="label">📍 打卡地</div><div class="value" id="statDest">0</div></div>
+                <div class="stat-card"><div class="label">🐼 熊猫</div><div class="value" id="statPandas">0</div></div>
+                <div class="stat-card"><div class="label">💰 花费</div><div class="value" id="statCost">0</div></div>
+                <div class="stat-card"><div class="label">📋 状态</div><div class="value" id="statStatus">0/0/0</div><div class="sub">计/进/完</div></div>
+            </section>
+
+            <!-- 列表 -->
+            <section class="trip-grid" id="tripGrid"></section>
+        </div>
+
+        <!-- ====== 详情页 ====== -->
+        <div id="detailPage" class="page page-hidden">
+            <div class="detail-scroll" id="detailScroll">
+                <!-- 头部由 js 动态渲染 -->
+                <div id="detailContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ================================================================
+        //  DATA
+        // ================================================================
+        const STORAGE_KEY = 'panda_travel_diary';
+        const PRESET_TEMPLATES = {
+            '一日游标配': ['身份证', '充电宝', '相机', '遮阳帽', '水杯', '零食'],
+            '深度追猫': ['身份证', '充电宝', '相机', '遮阳帽', '水杯', '零食', '长焦镜头', '折叠凳', '雨衣', '备用电池', '笔记本']
+        };
+        const DEFAULT_DATA = [{
+            id: '1',
+            destination: '成都大熊猫繁育研究基地',
+            status: 'done',
+            startDate: '2026-03-15',
+            endDate: '2026-03-16',
+            legs: [
+                { type: '高铁', number: 'G2187', platform: '携程', note: '上海→成都东' },
+                { type: '地铁', number: '3号线', platform: '天府通', note: '熊猫大道站' }
+            ],
+            checklist: ['身份证', '充电宝', '相机', '遮阳帽', '水杯', '零食', '长焦镜头'],
+            checkedItems: ['身份证', '充电宝', '相机'],
+            foods: '火锅、串串、冰粉，还有基地门口的熊猫造型冰淇淋！',
+            pandas: [
+                { name: '花花', meetTime: '2026-03-15T09:20' },
+                { name: '和叶', meetTime: '2026-03-15T14:15' },
+                { name: '萌兰', meetTime: '2026-03-16T10:30' }
+            ],
+            totalCost: 1280,
+            costNote: '机票800+门票110+住宿300+餐饮70',
+            tips: '一定要早点去，花花排队的人超多！建议7:30前到门口。'
+        }, {
+            id: '2',
+            destination: '北京动物园（萌兰）',
+            status: 'planning',
+            startDate: '2026-09-10',
+            endDate: '2026-09-10',
+            legs: [
+                { type: '高铁', number: 'G102', platform: '12306', note: '上海→北京' },
+                { type: '地铁', number: '4号线', platform: '北京一卡通', note: '动物园站' }
+            ],
+            checklist: ['身份证', '充电宝', '相机', '水杯', '遮阳帽'],
+            checkedItems: [],
+            foods: '打算去吃老北京炸酱面！',
+            pandas: [],
+            totalCost: 0,
+            costNote: '',
+            tips: '萌兰下午比较活跃，建议14:00左右去看。'
+        }];
+
+        // ================================================================
+        //  STATE
+        // ================================================================
+        let trips = [];
+        let editingId = null;
+        let currentMode = 'new'; // 'new' | 'edit'
+
+        // ================================================================
+        //  DOM REFS
+        // ================================================================
+        const listPage = document.getElementById('listPage');
+        const detailPage = document.getElementById('detailPage');
+        const detailContent = document.getElementById('detailContent');
+        const tripGrid = document.getElementById('tripGrid');
+        const newTripBtn = document.getElementById('newTripBtn');
+        const importBtn = document.getElementById('importBtn');
+        const exportBtn = document.getElementById('exportBtn');
+
+        // ================================================================
+        //  HELPERS
+        // ================================================================
+        function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+        function cloneObj(o) { return JSON.parse(JSON.stringify(o)); }
+
+        function escHtml(str) { if (!str) return ''; return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g,
+                '&lt;').replace(/>/g, '&gt;'); }
+
+        function getDefaultTrip() {
+            return {
+                id: genId(),
+                destination: '',
+                status: 'planning',
+                startDate: '',
+                endDate: '',
+                legs: [],
+                checklist: [],
+                checkedItems: [],
+                foods: '',
+                pandas: [],
+                totalCost: 0,
+                costNote: '',
+                tips: ''
+            };
+        }
+
+        function loadData() {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length) { trips = parsed; return; }
+                } catch (_) {}
+            }
+            trips = cloneObj(DEFAULT_DATA);
+            saveData();
+        }
+
+        function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(trips)); }
+
+        function nowLocalStr() {
+            const d = new Date();
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                String(d.getDate()).padStart(2, '0') + 'T' +
+                String(d.getHours()).padStart(2, '0') + ':' +
+                String(d.getMinutes()).padStart(2, '0');
+        }
+
+        // ================================================================
+        //  页面切换
+        // ================================================================
+        function showListPage() {
+            listPage.classList.remove('page-hidden');
+            listPage.classList.add('page-visible');
+            detailPage.classList.remove('page-visible');
+            detailPage.classList.add('page-hidden');
+            // 滚动到顶部
+            listPage.scrollTop = 0;
+        }
+
+        function showDetailPage() {
+            detailPage.classList.remove('page-hidden');
+            detailPage.classList.add('page-visible');
+            listPage.classList.remove('page-visible');
+            listPage.classList.add('page-hidden');
+            detailPage.scrollTop = 0;
+        }
+
+        // ================================================================
+        //  渲染列表
+        // ================================================================
+        function renderAll() {
+            renderStats();
+            renderTripList();
+        }
+
+        function renderStats() {
+            const destCount = trips.length;
+            let totalPandas = 0,
+                totalCost = 0,
+                plan = 0,
+                ongoing = 0,
+                done = 0;
+            trips.forEach(t => {
+                if (t.pandas) totalPandas += t.pandas.length;
+                if (t.totalCost) totalCost += Number(t.totalCost);
+                if (t.status === 'planning') plan++;
+                else if (t.status === 'ongoing') ongoing++;
+                else if (t.status === 'done') done++;
+            });
+            document.getElementById('statDest').textContent = destCount;
+            document.getElementById('statPandas').textContent = totalPandas;
+            document.getElementById('statCost').textContent = totalCost.toFixed(0);
+            document.getElementById('statStatus').textContent = `${plan}/${ongoing}/${done}`;
+        }
+
+        function renderTripList() {
+            if (!trips.length) {
+                tripGrid.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-paw"></i>
+                        <p style="font-size:16px; font-weight:500; color:var(--gray-500);">还没有旅行记录</p>
+                        <p style="margin-top:4px; font-size:14px;">点击「新建」开始你的熊猫之旅 🐼</p>
+                    </div>
+                `;
+                return;
+            }
+            let html = '';
+            trips.forEach(t => {
+                const pandaCount = t.pandas ? t.pandas.length : 0;
+                const checkedCount = t.checkedItems ? t.checkedItems.length : 0;
+                const totalCheck = t.checklist ? t.checklist.length : 0;
+                const statusMap = { planning: '计划中', ongoing: '进行中', done: '已完成' };
+                const statusClass = { planning: 'planning', ongoing: 'ongoing', done: 'done' };
+                const dateStr = t.startDate || '待定';
+                const endStr = t.endDate ? ` ~ ${t.endDate}` : '';
+                html += `
+                    <div class="trip-card" data-id="${t.id}">
+                        <div class="top-row">
+                            <span class="destination">${escHtml(t.destination || '未命名')}</span>
+                            <span class="status-badge ${statusClass[t.status] || 'planning'}">${statusMap[t.status] || '计划中'}</span>
+                        </div>
+                        <div class="meta">
+                            <span><i class="far fa-calendar-alt"></i> ${dateStr}${endStr}</span>
+                            <span><i class="fas fa-utensils"></i> ${t.foods ? '有美食' : '未记录'}</span>
+                        </div>
+                        <div class="footer-stats">
+                            <span><i class="fas fa-paw"></i> ${pandaCount} 只</span>
+                            <span><i class="fas fa-list-check"></i> ${checkedCount}/${totalCheck}</span>
+                            <span><i class="fas fa-yen-sign"></i> ${t.totalCost || 0}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            tripGrid.innerHTML = html;
+            document.querySelectorAll('.trip-card').forEach(el => {
+                el.addEventListener('click', function() {
+                    const id = this.dataset.id;
+                    openDetail(id);
+                });
+            });
+        }
+
+        // ================================================================
+        //  详情页渲染
+        // ================================================================
+        function openDetail(id) {
+            const trip = trips.find(t => t.id === id);
+            if (!trip) return;
+            editingId = id;
+            currentMode = 'edit';
+            renderDetailForm(trip);
+            showDetailPage();
+        }
+
+        function openNewTrip() {
+            const newTrip = getDefaultTrip();
+            editingId = null;
+            currentMode = 'new';
+            renderDetailForm(newTrip);
+            showDetailPage();
+        }
+
+        function goBack() {
+            showListPage();
+            renderAll();
+        }
+
+        function renderDetailForm(t) {
+            const isEdit = currentMode === 'edit';
+            const checklist = t.checklist || [];
+            const checkedItems = t.checkedItems || [];
+            const pandas = t.pandas || [];
+            const legs = t.legs || [];
+
+            let html = `
+                <!-- 头部 -->
+                <div class="detail-header">
+                    <button class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i></button>
+                    <h2>${isEdit ? escHtml(t.destination || '编辑行程') : '✏️ 新建行程'}</h2>
+                    <div class="header-actions">
+                        ${isEdit ? `<button class="btn btn-sm btn-outline" onclick="duplicateTrip()"><i class="fas fa-copy"></i></button>` : ''}
+                        ${isEdit ? `<button class="btn btn-sm btn-danger-outline" onclick="deleteTrip()"><i class="fas fa-trash"></i></button>` : ''}
+                    </div>
+                </div>
+
+                <!-- 基本信息 -->
+                <div class="detail-section">
+                    <div class="section-title"><i class="fas fa-info-circle"></i> 基本信息</div>
+                    <div class="form-group">
+                        <label>📍 目的地 <span class="hint">*</span></label>
+                        <input type="text" id="f_destination" value="${escHtml(t.destination)}" placeholder="例：成都大熊猫基地" />
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>📅 开始</label>
+                            <input type="date" id="f_startDate" value="${t.startDate || ''}" />
+                        </div>
+                        <div class="form-group">
+                            <label>📅 结束</label>
+                            <input type="date" id="f_endDate" value="${t.endDate || ''}" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>📌 状态</label>
+                        <select id="f_status">
+                            <option value="planning" ${t.status === 'planning' ? 'selected' : ''}>计划中</option>
+                            <option value="ongoing" ${t.status === 'ongoing' ? 'selected' : ''}>进行中</option>
+                            <option value="done" ${t.status === 'done' ? 'selected' : ''}>已完成</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 出行方式 -->
+                <div class="detail-section">
+                    <div class="section-title"><i class="fas fa-route"></i> 出行方式</div>
+                    <div id="legsContainer">
+                        ${legs.map((leg, idx) => `
+                            <div class="leg-item" data-legidx="${idx}">
+                                <div class="leg-field"><label>方式</label>
+                                    <select class="leg-type">
+                                        ${['高铁','飞机','自驾','地铁','公交','其他'].map(opt => `<option value="${opt}" ${leg.type === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="leg-field"><label>车次/路线</label>
+                                    <input class="leg-number" type="text" value="${escHtml(leg.number || '')}" placeholder="G2187" />
+                                </div>
+                                <div class="leg-field"><label>平台</label>
+                                    <input class="leg-platform" type="text" value="${escHtml(leg.platform || '')}" placeholder="携程" />
+                                </div>
+                                <div class="leg-field" style="flex:2;"><label>备注</label>
+                                    <input class="leg-note" type="text" value="${escHtml(leg.note || '')}" placeholder="上海→成都" />
+                                </div>
+                                <button class="leg-remove" type="button" onclick="removeLeg(${idx})">&times;</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button class="btn btn-sm btn-outline btn-block mt-1" type="button" onclick="addLeg()"><i class="fas fa-plus"></i> 添加出行段</button>
+                </div>
+
+                <!-- 旅行清单 -->
+                <div class="detail-section">
+                    <div class="flex-between">
+                        <div class="section-title" style="margin-bottom:0;"><i class="fas fa-list-check"></i> 旅行清单</div>
+                        <div>
+                            <span class="template-badge" onclick="applyTemplate('一日游标配')">一日游</span>
+                            <span class="template-badge" onclick="applyTemplate('深度追猫')">深度追猫</span>
+                        </div>
+                    </div>
+                    <div class="checkbox-group" id="checklistContainer" style="margin-top:10px;">
+                        ${checklist.map(item => `
+                            <label>
+                                <input type="checkbox" class="check-item" value="${escHtml(item)}" ${checkedItems.includes(item) ? 'checked' : ''} />
+                                ${escHtml(item)}
+                            </label>
+                        `).join('')}
+                    </div>
+                    <div class="inline-flex mt-1">
+                        <input type="text" id="newCheckItem" placeholder="新增清单项" />
+                        <button class="btn btn-sm btn-outline" type="button" onclick="addCheckItem()"><i class="fas fa-plus"></i> 添加</button>
+                    </div>
+                </div>
+
+                <!-- 美食 -->
+                <div class="detail-section">
+                    <div class="section-title"><i class="fas fa-utensils"></i> 美食记录</div>
+                    <textarea id="f_foods" rows="2" placeholder="吃了什么好吃的？">${escHtml(t.foods || '')}</textarea>
+                </div>
+
+                <!-- 熊猫打卡 -->
+                <div class="detail-section">
+                    <div class="section-title"><i class="fas fa-paw"></i> 熊猫打卡</div>
+                    <div id="pandaContainer">
+                        ${pandas.map((p, idx) => `
+                            <div class="panda-entry" data-pandaidx="${idx}">
+                                <span class="panda-name">🐼 ${escHtml(p.name)}</span>
+                                <span class="panda-time"><i class="far fa-clock"></i> ${escHtml(p.meetTime || '')}</span>
+                                <button class="panda-remove" type="button" onclick="removePanda(${idx})">&times;</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="inline-flex mt-1">
+                        <input type="text" id="newPandaName" placeholder="熊猫名字" style="flex:1; min-width:100px;" />
+                        <input type="datetime-local" id="newPandaTime" style="flex:1; min-width:140px;" />
+                        <button class="btn btn-sm btn-outline" type="button" onclick="addPanda()"><i class="fas fa-plus"></i> 记录</button>
+                    </div>
+                    <div class="text-muted text-sm mt-1"><i class="far fa-lightbulb"></i> 默认当前时间，可修改</div>
+                </div>
+
+                <!-- 花费 -->
+                <div class="detail-section">
+                    <div class="section-title"><i class="fas fa-coins"></i> 花费</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>💰 总花费 (元)</label>
+                            <input type="number" id="f_totalCost" value="${t.totalCost || ''}" step="0.01" min="0" />
+                        </div>
+                        <div class="form-group">
+                            <label>备注</label>
+                            <input type="text" id="f_costNote" value="${escHtml(t.costNote || '')}" placeholder="机票800+门票..." />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 小贴士 -->
+                <div class="detail-section">
+                    <div class="section-title"><i class="fas fa-lightbulb"></i> 小贴士</div>
+                    <textarea id="f_tips" rows="2" placeholder="给未来的自己一些提醒">${escHtml(t.tips || '')}</textarea>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="trip-actions">
+                    <button class="btn btn-primary" type="button" onclick="saveTrip()"><i class="fas fa-save"></i> 保存</button>
+                    <button class="btn btn-outline" type="button" onclick="goBack()">取消</button>
+                </div>
+                <div style="height:12px;"></div>
+            `;
+
+            detailContent.innerHTML = html;
+
+            // 自动填充当前时间到熊猫时间输入框
+            const timeInput = document.getElementById('newPandaTime');
+            if (timeInput && !timeInput.value) {
+                timeInput.value = nowLocalStr();
+            }
+            // 滚动到顶部
+            detailPage.scrollTop = 0;
+        }
+
+        // ================================================================
+        //  表单操作函数 (挂载到 window)
+        // ================================================================
+
+        // ---- 出行段 ----
+        window.addLeg = function() {
+            const container = document.getElementById('legsContainer');
+            const idx = container.children.length;
+            const div = document.createElement('div');
+            div.className = 'leg-item';
+            div.dataset.legidx = idx;
+            div.innerHTML = `
+                <div class="leg-field"><label>方式</label>
+                    <select class="leg-type">
+                        ${['高铁','飞机','自驾','地铁','公交','其他'].map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="leg-field"><label>车次/路线</label>
+                    <input class="leg-number" type="text" placeholder="G2187" />
+                </div>
+                <div class="leg-field"><label>平台</label>
+                    <input class="leg-platform" type="text" placeholder="携程" />
+                </div>
+                <div class="leg-field" style="flex:2;"><label>备注</label>
+                    <input class="leg-note" type="text" placeholder="上海→成都" />
+                </div>
+                <button class="leg-remove" type="button" onclick="removeLeg(${idx})">&times;</button>
+            `;
+            container.appendChild(div);
+        };
+
+        window.removeLeg = function(idx) {
+            const container = document.getElementById('legsContainer');
+            const items = container.querySelectorAll('.leg-item');
+            for (let el of items) {
+                if (parseInt(el.dataset.legidx) === idx) { el.remove(); break; }
+            }
+            container.querySelectorAll('.leg-item').forEach((el, i) => el.dataset.legidx = i);
+        };
+
+        // ---- 清单 ----
+        window.addCheckItem = function() {
+            const input = document.getElementById('newCheckItem');
+            const val = input.value.trim();
+            if (!val) return;
+            const container = document.getElementById('checklistContainer');
+            const label = document.createElement('label');
+            label.innerHTML = `<input type="checkbox" class="check-item" value="${escHtml(val)}" /> ${escHtml(val)}`;
+            container.appendChild(label);
+            input.value = '';
+        };
+
+        window.applyTemplate = function(name) {
+            const items = PRESET_TEMPLATES[name];
+            if (!items) return;
+            const container = document.getElementById('checklistContainer');
+            container.innerHTML = '';
+            items.forEach(item => {
+                const label = document.createElement('label');
+                label.innerHTML = `<input type="checkbox" class="check-item" value="${escHtml(item)}" /> ${escHtml(item)}`;
+                container.appendChild(label);
+            });
+        };
+
+        // ---- 熊猫 ----
+        window.removePanda = function(idx) {
+            const container = document.getElementById('pandaContainer');
+            const items = container.querySelectorAll('.panda-entry');
+            for (let el of items) {
+                if (parseInt(el.dataset.pandaidx) === idx) { el.remove(); break; }
+            }
+            container.querySelectorAll('.panda-entry').forEach((el, i) => el.dataset.pandaidx = i);
+        };
+
+        window.addPanda = function() {
+            const nameInput = document.getElementById('newPandaName');
+            const timeInput = document.getElementById('newPandaTime');
+            const name = nameInput.value.trim();
+            let meetTime = timeInput.value;
+            if (!name) return;
+            if (!meetTime) meetTime = nowLocalStr();
+            const container = document.getElementById('pandaContainer');
+            const idx = container.children.length;
+            const div = document.createElement('div');
+            div.className = 'panda-entry';
+            div.dataset.pandaidx = idx;
+            div.innerHTML = `
+                <span class="panda-name">🐼 ${escHtml(name)}</span>
+                <span class="panda-time"><i class="far fa-clock"></i> ${escHtml(meetTime)}</span>
+                <button class="panda-remove" type="button" onclick="removePanda(${idx})">&times;</button>
+            `;
+            container.appendChild(div);
+            nameInput.value = '';
+            timeInput.value = nowLocalStr();
+        };
+
+        // ---- 保存 ----
+        window.saveTrip = function() {
+            const destination = document.getElementById('f_destination').value.trim();
+            if (!destination) { alert('请填写目的地 🐼'); return; }
+            const startDate = document.getElementById('f_startDate').value;
+            const endDate = document.getElementById('f_endDate').value;
+            const status = document.getElementById('f_status').value;
+
+            // legs
+            const legItems = document.querySelectorAll('#legsContainer .leg-item');
+            const legs = [];
+            legItems.forEach(el => {
+                legs.push({
+                    type: el.querySelector('.leg-type').value,
+                    number: el.querySelector('.leg-number').value.trim(),
+                    platform: el.querySelector('.leg-platform').value.trim(),
+                    note: el.querySelector('.leg-note').value.trim()
+                });
+            });
+
+            // checklist
+            const checkItems = document.querySelectorAll('#checklistContainer .check-item');
+            const checklist = [],
+                checkedItems = [];
+            checkItems.forEach(cb => {
+                const val = cb.value;
+                checklist.push(val);
+                if (cb.checked) checkedItems.push(val);
+            });
+
+            // pandas
+            const pandaEntries = document.querySelectorAll('#pandaContainer .panda-entry');
+            const pandas = [];
+            pandaEntries.forEach(el => {
+                const name = el.querySelector('.panda-name').textContent.replace('🐼 ', '');
+                const timeSpan = el.querySelector('.panda-time');
+                const meetTime = timeSpan ? timeSpan.textContent.replace('🕐 ', '').trim() : '';
+                pandas.push({ name, meetTime });
+            });
+
+            const foods = document.getElementById('f_foods').value;
+            const totalCost = parseFloat(document.getElementById('f_totalCost').value) || 0;
+            const costNote = document.getElementById('f_costNote').value;
+            const tips = document.getElementById('f_tips').value;
+
+            const tripData = {
+                id: editingId || genId(),
+                destination,
+                status,
+                startDate,
+                endDate,
+                legs,
+                checklist,
+                checkedItems,
+                foods,
+                pandas,
+                totalCost,
+                costNote,
+                tips
+            };
+
+            if (currentMode === 'new') {
+                trips.push(tripData);
+            } else {
+                const idx = trips.findIndex(t => t.id === editingId);
+                if (idx !== -1) trips[idx] = tripData;
+            }
+            saveData();
+            goBack();
+        };
+
+        // ---- 删除 ----
+        window.deleteTrip = function() {
+            if (!editingId) return;
+            if (!confirm('确定删除这次旅行记录吗？')) return;
+            trips = trips.filter(t => t.id !== editingId);
+            saveData();
+            goBack();
+        };
+
+        // ---- 复制 ----
+        window.duplicateTrip = function() {
+            if (!editingId) return;
+            const original = trips.find(t => t.id === editingId);
+            if (!original) return;
+            const copy = cloneObj(original);
+            copy.id = genId();
+            copy.destination = original.destination + ' (副本)';
+            copy.status = 'planning';
+            copy.startDate = '';
+            copy.endDate = '';
+            copy.pandas = [];
+            copy.checkedItems = [];
+            trips.push(copy);
+            saveData();
+            goBack();
+            setTimeout(() => {
+                const newTrip = trips.find(t => t.id === copy.id);
+                if (newTrip) openDetail(newTrip.id);
+            }, 300);
+        };
+
+        // ---- 导入导出 ----
+        function exportData() {
+            const dataStr = JSON.stringify(trips, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `panda_diary_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    try {
+                        const imported = JSON.parse(ev.target.result);
+                        if (Array.isArray(imported)) {
+                            if (!confirm(`将导入 ${imported.length} 条记录，覆盖当前数据？`)) return;
+                            trips = imported;
+                            saveData();
+                            renderAll();
+                            alert('✅ 导入成功！');
+                        } else { alert('❌ 无效格式'); }
+                    } catch (_) { alert('❌ 文件解析失败'); }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        // ================================================================
+        //  事件绑定
+        // ================================================================
+        newTripBtn.addEventListener('click', openNewTrip);
+        exportBtn.addEventListener('click', exportData);
+        importBtn.addEventListener('click', importData);
+
+        // ================================================================
+        //  初始化
+        // ================================================================
+        loadData();
+        renderAll();
+        console.log('🐼 熊猫旅行日记已加载！');
+    </script>
+</body>
+</html>
