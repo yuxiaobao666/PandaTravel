@@ -169,18 +169,6 @@
             width: 100%;
             justify-content: center;
         }
-        .btn-icon-only {
-            padding: 4px 8px;
-            min-height: 28px;
-            background: transparent;
-            border: none;
-            color: var(--gray-400);
-            font-size: 16px;
-            cursor: pointer;
-        }
-        .btn-icon-only:active {
-            color: #b91c1c;
-        }
         /* ===== 统计卡片 ===== */
         .stats-grid {
             display: grid;
@@ -359,27 +347,38 @@
         .empty-state p {
             font-size: 14px;
         }
-        /* ===== 详情页 ===== */
+        /* ===== 详情页 - 顶部与页面融合 ===== */
         #detailPage {
             z-index: 20;
             padding: 0 0 calc(20px + var(--safe-bottom));
             background: var(--gray-50);
         }
         .detail-scroll {
-            padding: 12px 16px 20px;
+            padding: 0 16px 20px;
             overflow-y: auto;
             height: 100%;
             -webkit-overflow-scrolling: touch;
         }
+        /* 顶部区域 - 完全融入页面，作为滚动流的一部分 */
         .detail-header {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 12px 0 16px;
+            padding: 16px 0 14px;
+            background: transparent;
             position: sticky;
             top: 0;
-            background: var(--gray-50);
             z-index: 5;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            background: rgba(249, 250, 251, 0.85);
+            margin: 0 -16px;
+            padding: 16px 16px 14px;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.2s;
+        }
+        .detail-header.scrolled {
+            border-bottom-color: var(--gray-200);
         }
         .detail-header .back-btn {
             background: none;
@@ -389,6 +388,7 @@
             cursor: pointer;
             padding: 8px 4px 8px 0;
             touch-action: manipulation;
+            flex-shrink: 0;
         }
         .detail-header .back-btn:active {
             color: var(--green-600);
@@ -404,6 +404,8 @@
         }
         .detail-header .header-actions {
             flex-shrink: 0;
+            display: flex;
+            gap: 4px;
         }
         .detail-header .header-actions .btn {
             min-height: 34px;
@@ -825,31 +827,6 @@
             flex: 0 0 auto;
             min-height: 38px;
         }
-        /* ===== 操作按钮组 ===== */
-        .trip-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 6px;
-            padding-top: 16px;
-            border-top: 1px solid var(--gray-200);
-        }
-        .trip-actions .btn {
-            flex: 1 0 calc(50% - 10px);
-            min-height: 44px;
-        }
-        .text-muted {
-            color: var(--gray-400);
-        }
-        .text-sm {
-            font-size: 12px;
-        }
-        .text-center {
-            text-align: center;
-        }
-        .hidden {
-            display: none !important;
-        }
         /* ===== 手机适配 ===== */
         @media (max-width: 400px) {
             .stats-grid {
@@ -1020,6 +997,8 @@
         let editingId = null;
         let currentMode = 'new';
         let currentFilter = 'all';
+        let autoSaveTimer = null;
+        let isAutoSaving = false;
 
         // ================================================================
         //  DOM REFS
@@ -1034,6 +1013,7 @@
         const templateModal = document.getElementById('templateModal');
         const templateModalBody = document.getElementById('templateModalBody');
         const filterTabs = document.getElementById('filterTabs');
+        const detailScroll = document.getElementById('detailScroll');
 
         // ================================================================
         //  HELPERS
@@ -1072,7 +1052,6 @@
                         trips = parsed.map(t => {
                             if (!t.expenses) t.expenses = [];
                             if (!t.hotels) t.hotels = [];
-                            // 兼容旧数据：如果有 hotel 字段但没有 hotels，迁移
                             if (t.hotel && !t.hotels.length) {
                                 if (t.hotel.name || t.hotel.platform || t.hotel.note) {
                                     t.hotels = [t.hotel];
@@ -1171,9 +1150,7 @@
         }
 
         function renderStats() {
-            // 打卡地：只统计 ongoing + done
             const destCount = trips.filter(t => t.status === 'ongoing' || t.status === 'done').length;
-            // 熊猫个数：去重
             const allPandaNames = new Set();
             trips.forEach(t => {
                 if (t.pandas) {
@@ -1311,6 +1288,7 @@
         }
 
         function goBack() {
+            autoSaveTrip();
             showListPage();
             renderAll();
         }
@@ -1327,10 +1305,10 @@
             const templateNames = getTemplateNames();
 
             let html = `
-                <!-- 头部 -->
-                <div class="detail-header">
+                <!-- 顶部区域 - 与页面融合 -->
+                <div class="detail-header" id="detailHeader">
                     <button class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i></button>
-                    <h2>${isEdit ? escHtml(t.destination || '编辑行程') : '✏️ 新建行程'}</h2>
+                    <h2 id="detailTitle">${isEdit ? escHtml(t.destination || '编辑行程') : '✏️ 新建行程'}</h2>
                     <div class="header-actions">
                         ${isEdit ? `<button class="btn btn-sm btn-outline" onclick="duplicateTrip()"><i class="fas fa-copy"></i></button>` : ''}
                         ${isEdit ? `<button class="btn btn-sm btn-danger-outline" onclick="deleteTrip()"><i class="fas fa-trash"></i></button>` : ''}
@@ -1494,27 +1472,197 @@
                     <textarea id="f_tips" rows="2" placeholder="给未来的自己一些提醒">${escHtml(t.tips || '')}</textarea>
                 </div>
 
-                <!-- 操作按钮 -->
-                <div class="trip-actions">
-                    <button class="btn btn-primary" type="button" onclick="saveTrip()"><i class="fas fa-save"></i> 保存</button>
-                    <button class="btn btn-outline" type="button" onclick="goBack()">取消</button>
-                </div>
                 <div style="height:12px;"></div>
             `;
 
             detailContent.innerHTML = html;
 
+            // 初始化时间
             const timeInput = document.getElementById('newPandaTime');
             if (timeInput && !timeInput.value) {
                 timeInput.value = nowLocalStr();
             }
             detailPage.scrollTop = 0;
             updateExpenseTotal();
-            // 绑定费用输入事件
-            document.querySelectorAll('.expense-amount, .expense-type, .expense-note').forEach(el => {
-                el.addEventListener('input', updateExpenseTotal);
-                el.addEventListener('change', updateExpenseTotal);
+
+            // ---- 绑定自动保存事件 ----
+            bindAutoSaveEvents();
+
+            // 更新标题（当目的地变化时）
+            const destInput = document.getElementById('f_destination');
+            if (destInput) {
+                destInput.addEventListener('input', function() {
+                    const title = document.getElementById('detailTitle');
+                    if (title) {
+                        title.textContent = this.value.trim() || (currentMode === 'new' ? '✏️ 新建行程' : '编辑行程');
+                    }
+                });
+            }
+
+            // ---- 滚动监听：顶部边框 ----
+            const header = document.getElementById('detailHeader');
+            const scrollEl = detailPage;
+            scrollEl.addEventListener('scroll', function() {
+                if (this.scrollTop > 8) {
+                    header.classList.add('scrolled');
+                } else {
+                    header.classList.remove('scrolled');
+                }
             });
+        }
+
+        // ================================================================
+        //  自动保存
+        // ================================================================
+        function bindAutoSaveEvents() {
+            const formElements = detailContent.querySelectorAll(
+                'input, select, textarea, .check-item'
+            );
+
+            formElements.forEach(el => {
+                el.removeEventListener('input', autoSaveHandler);
+                el.removeEventListener('change', autoSaveHandler);
+                el.addEventListener('input', autoSaveHandler);
+                el.addEventListener('change', autoSaveHandler);
+            });
+
+            document.querySelectorAll('.check-item').forEach(cb => {
+                cb.removeEventListener('change', autoSaveHandler);
+                cb.addEventListener('change', autoSaveHandler);
+            });
+
+            document.querySelectorAll('.expense-amount, .expense-type, .expense-note').forEach(el => {
+                el.removeEventListener('input', autoSaveHandler);
+                el.removeEventListener('change', autoSaveHandler);
+                el.addEventListener('input', autoSaveHandler);
+                el.addEventListener('change', autoSaveHandler);
+            });
+        }
+
+        function autoSaveHandler(e) {
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(() => {
+                autoSaveTrip();
+            }, 500);
+        }
+
+        function autoSaveTrip() {
+            if (isAutoSaving) return;
+            isAutoSaving = true;
+
+            try {
+                const tripData = collectFormData();
+                if (!tripData.destination.trim()) {
+                    isAutoSaving = false;
+                    return;
+                }
+
+                if (currentMode === 'new') {
+                    const existing = trips.find(t => t.id === tripData.id);
+                    if (!existing) {
+                        trips.push(tripData);
+                    } else {
+                        const idx = trips.findIndex(t => t.id === tripData.id);
+                        if (idx !== -1) trips[idx] = tripData;
+                    }
+                    currentMode = 'edit';
+                    editingId = tripData.id;
+                } else {
+                    const idx = trips.findIndex(t => t.id === editingId);
+                    if (idx !== -1) {
+                        trips[idx] = tripData;
+                    } else {
+                        trips.push(tripData);
+                    }
+                }
+
+                saveData();
+
+                const title = document.getElementById('detailTitle');
+                if (title && tripData.destination) {
+                    title.textContent = tripData.destination;
+                }
+
+            } catch (e) {
+                console.warn('自动保存失败:', e);
+            }
+
+            isAutoSaving = false;
+        }
+
+        function collectFormData() {
+            const destination = document.getElementById('f_destination')?.value?.trim() || '';
+            const startDate = document.getElementById('f_startDate')?.value || '';
+            const endDate = document.getElementById('f_endDate')?.value || '';
+            const status = document.getElementById('f_status')?.value || 'planning';
+
+            const legItems = document.querySelectorAll('#legsContainer .entry-item');
+            const legs = [];
+            legItems.forEach(el => {
+                legs.push({
+                    type: el.querySelector('.leg-type')?.value || '',
+                    platform: el.querySelector('.leg-platform')?.value?.trim() || '',
+                    note: el.querySelector('.leg-note')?.value?.trim() || ''
+                });
+            });
+
+            const hotelItems = document.querySelectorAll('#hotelsContainer .entry-item');
+            const hotels = [];
+            hotelItems.forEach(el => {
+                hotels.push({
+                    name: el.querySelector('.hotel-name')?.value?.trim() || '',
+                    platform: el.querySelector('.hotel-platform')?.value?.trim() || '',
+                    note: el.querySelector('.hotel-note')?.value?.trim() || ''
+                });
+            });
+
+            const checkItems = document.querySelectorAll('#checklistContainer .check-item');
+            const checklist = [],
+                checkedItems = [];
+            checkItems.forEach(cb => {
+                const val = cb.value;
+                checklist.push(val);
+                if (cb.checked) checkedItems.push(val);
+            });
+
+            const pandaEntries = document.querySelectorAll('#pandaContainer .panda-entry');
+            const pandas = [];
+            pandaEntries.forEach(el => {
+                const name = el.querySelector('.panda-name')?.textContent?.replace('🐼 ', '') || '';
+                const timeSpan = el.querySelector('.panda-time');
+                const meetTime = timeSpan ? timeSpan.textContent.replace('🕐 ', '').trim() : '';
+                pandas.push({ name, meetTime });
+            });
+
+            const expenseItems = document.querySelectorAll('#expenseContainer .expense-item');
+            const expenses = [];
+            expenseItems.forEach(el => {
+                const type = el.querySelector('.expense-type')?.value || '';
+                const amount = parseFloat(el.querySelector('.expense-amount')?.value) || 0;
+                const note = el.querySelector('.expense-note')?.value?.trim() || '';
+                if (amount > 0 || note) {
+                    expenses.push({ type, amount, note });
+                }
+            });
+
+            const foods = document.getElementById('f_foods')?.value || '';
+            const tips = document.getElementById('f_tips')?.value || '';
+
+            return {
+                id: editingId || genId(),
+                destination,
+                status,
+                startDate,
+                endDate,
+                legs,
+                checklist,
+                checkedItems,
+                foods,
+                pandas,
+                expenses,
+                tips,
+                hotels
+            };
         }
 
         // ================================================================
@@ -1543,6 +1691,11 @@
                 <button class="entry-remove" type="button" onclick="removeLeg(${idx})">&times;</button>
             `;
             container.appendChild(div);
+            div.querySelectorAll('input, select').forEach(el => {
+                el.addEventListener('input', autoSaveHandler);
+                el.addEventListener('change', autoSaveHandler);
+            });
+            autoSaveHandler({ type: 'input' });
         };
 
         window.removeLeg = function(idx) {
@@ -1552,6 +1705,7 @@
                 if (parseInt(el.dataset.legidx) === idx) { el.remove(); break; }
             }
             container.querySelectorAll('.entry-item').forEach((el, i) => el.dataset.legidx = i);
+            autoSaveHandler({ type: 'change' });
         };
 
         // ---- 住宿 ----
@@ -1574,6 +1728,11 @@
                 <button class="entry-remove" type="button" onclick="removeHotel(${idx})">&times;</button>
             `;
             container.appendChild(div);
+            div.querySelectorAll('input').forEach(el => {
+                el.addEventListener('input', autoSaveHandler);
+                el.addEventListener('change', autoSaveHandler);
+            });
+            autoSaveHandler({ type: 'input' });
         };
 
         window.removeHotel = function(idx) {
@@ -1583,6 +1742,7 @@
                 if (parseInt(el.dataset.hotelidx) === idx) { el.remove(); break; }
             }
             container.querySelectorAll('.entry-item').forEach((el, i) => el.dataset.hotelidx = i);
+            autoSaveHandler({ type: 'change' });
         };
 
         // ---- 清单 ----
@@ -1592,9 +1752,16 @@
             if (!val) return;
             const container = document.getElementById('checklistContainer');
             const label = document.createElement('label');
-            label.innerHTML = `<input type="checkbox" class="check-item" value="${escHtml(val)}" /> ${escHtml(val)}`;
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.className = 'check-item';
+            cb.value = val;
+            cb.addEventListener('change', autoSaveHandler);
+            label.appendChild(cb);
+            label.appendChild(document.createTextNode(' ' + val));
             container.appendChild(label);
             input.value = '';
+            autoSaveHandler({ type: 'change' });
         };
 
         window.applyTemplate = function(name) {
@@ -1604,9 +1771,16 @@
             container.innerHTML = '';
             items.forEach(item => {
                 const label = document.createElement('label');
-                label.innerHTML = `<input type="checkbox" class="check-item" value="${escHtml(item)}" /> ${escHtml(item)}`;
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.className = 'check-item';
+                cb.value = item;
+                cb.addEventListener('change', autoSaveHandler);
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(' ' + item));
                 container.appendChild(label);
             });
+            autoSaveHandler({ type: 'change' });
         };
 
         // ---- 熊猫 ----
@@ -1617,6 +1791,7 @@
                 if (parseInt(el.dataset.pandaidx) === idx) { el.remove(); break; }
             }
             container.querySelectorAll('.panda-entry').forEach((el, i) => el.dataset.pandaidx = i);
+            autoSaveHandler({ type: 'change' });
         };
 
         window.addPanda = function() {
@@ -1639,6 +1814,7 @@
             container.appendChild(div);
             nameInput.value = '';
             timeInput.value = nowLocalStr();
+            autoSaveHandler({ type: 'change' });
         };
 
         // ---- 费用 ----
@@ -1664,10 +1840,14 @@
             `;
             container.appendChild(div);
             div.querySelectorAll('input, select').forEach(el => {
-                el.addEventListener('input', updateExpenseTotal);
-                el.addEventListener('change', updateExpenseTotal);
+                el.addEventListener('input', autoSaveHandler);
+                el.addEventListener('change', autoSaveHandler);
+                if (el.classList.contains('expense-amount')) {
+                    el.addEventListener('input', updateExpenseTotal);
+                }
             });
             updateExpenseTotal();
+            autoSaveHandler({ type: 'input' });
         };
 
         window.removeExpense = function(idx) {
@@ -1678,13 +1858,14 @@
             }
             container.querySelectorAll('.expense-item').forEach((el, i) => el.dataset.expenseidx = i);
             updateExpenseTotal();
+            autoSaveHandler({ type: 'change' });
         };
 
         function updateExpenseTotal() {
             const items = document.querySelectorAll('.expense-item');
             let total = 0;
             items.forEach(el => {
-                const amount = parseFloat(el.querySelector('.expense-amount').value) || 0;
+                const amount = parseFloat(el.querySelector('.expense-amount')?.value) || 0;
                 total += amount;
             });
             const display = document.getElementById('expenseTotalDisplay');
@@ -1757,97 +1938,7 @@
             renderTemplateModal();
         };
 
-        // ---- 保存 ----
-        window.saveTrip = function() {
-            const destination = document.getElementById('f_destination').value.trim();
-            if (!destination) { alert('请填写目的地 🐼'); return; }
-            const startDate = document.getElementById('f_startDate').value;
-            const endDate = document.getElementById('f_endDate').value;
-            const status = document.getElementById('f_status').value;
-
-            // legs
-            const legItems = document.querySelectorAll('#legsContainer .entry-item');
-            const legs = [];
-            legItems.forEach(el => {
-                legs.push({
-                    type: el.querySelector('.leg-type').value,
-                    platform: el.querySelector('.leg-platform').value.trim(),
-                    note: el.querySelector('.leg-note').value.trim()
-                });
-            });
-
-            // hotels
-            const hotelItems = document.querySelectorAll('#hotelsContainer .entry-item');
-            const hotels = [];
-            hotelItems.forEach(el => {
-                hotels.push({
-                    name: el.querySelector('.hotel-name').value.trim(),
-                    platform: el.querySelector('.hotel-platform').value.trim(),
-                    note: el.querySelector('.hotel-note').value.trim()
-                });
-            });
-
-            // checklist
-            const checkItems = document.querySelectorAll('#checklistContainer .check-item');
-            const checklist = [],
-                checkedItems = [];
-            checkItems.forEach(cb => {
-                const val = cb.value;
-                checklist.push(val);
-                if (cb.checked) checkedItems.push(val);
-            });
-
-            // pandas
-            const pandaEntries = document.querySelectorAll('#pandaContainer .panda-entry');
-            const pandas = [];
-            pandaEntries.forEach(el => {
-                const name = el.querySelector('.panda-name').textContent.replace('🐼 ', '');
-                const timeSpan = el.querySelector('.panda-time');
-                const meetTime = timeSpan ? timeSpan.textContent.replace('🕐 ', '').trim() : '';
-                pandas.push({ name, meetTime });
-            });
-
-            // expenses
-            const expenseItems = document.querySelectorAll('#expenseContainer .expense-item');
-            const expenses = [];
-            expenseItems.forEach(el => {
-                const type = el.querySelector('.expense-type').value;
-                const amount = parseFloat(el.querySelector('.expense-amount').value) || 0;
-                const note = el.querySelector('.expense-note').value.trim();
-                if (amount > 0 || note) {
-                    expenses.push({ type, amount, note });
-                }
-            });
-
-            const foods = document.getElementById('f_foods').value;
-            const tips = document.getElementById('f_tips').value;
-
-            const tripData = {
-                id: editingId || genId(),
-                destination,
-                status,
-                startDate,
-                endDate,
-                legs,
-                checklist,
-                checkedItems,
-                foods,
-                pandas,
-                expenses,
-                tips,
-                hotels
-            };
-
-            if (currentMode === 'new') {
-                trips.push(tripData);
-            } else {
-                const idx = trips.findIndex(t => t.id === editingId);
-                if (idx !== -1) trips[idx] = tripData;
-            }
-            saveData();
-            goBack();
-        };
-
+        // ---- 删除 / 复制 ----
         window.deleteTrip = function() {
             if (!editingId) return;
             if (!confirm('确定删除这次旅行记录吗？')) return;
@@ -1945,6 +2036,7 @@
         renderAll();
         console.log('🐼 熊猫旅行日记已加载！');
         console.log(`📊 当前共 ${trips.length} 条旅行记录`);
+        console.log('💡 详情页支持自动保存，修改后无需手动保存');
     </script>
 </body>
 </html>
