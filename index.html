@@ -887,6 +887,7 @@
                 <div class="header-actions">
                     <button class="btn btn-primary" id="newTripBtn"><i class="fas fa-plus"></i> 新建</button>
                     <button class="btn btn-outline" id="importBtn"><i class="fas fa-upload"></i></button>
+                    <span id="cloudStatus" style="font-size:0.75rem;color:#2d8a4e;"></span>
                     <button class="btn btn-outline" id="exportBtn"><i class="fas fa-download"></i></button>
                 </div>
             </header>
@@ -935,6 +936,14 @@
         //  DATA
         // ================================================================
         const STORAGE_KEY = 'panda_travel_diary';
+        const CACHE_KEY = 'panda_travel_cloud_cache';
+        const CLOUD_API_URL = '/api/data';
+        const CLOUD_ENABLED = true;
+
+        function setStatus(text) {
+          const el = document.getElementById('cloudStatus');
+          if (el) el.textContent = text;
+        }
         const TEMPLATE_KEY = 'panda_templates';
 
         const DEFAULT_TEMPLATES = {
@@ -1043,13 +1052,14 @@
             };
         }
 
-        function loadData() {
-            const raw = localStorage.getItem(STORAGE_KEY);
+        function loadLocalData() {
+            const raw = localStorage.getItem(CACHE_KEY) || localStorage.getItem(STORAGE_KEY);
             if (raw) {
                 try {
                     const parsed = JSON.parse(raw);
-                    if (Array.isArray(parsed) && parsed.length) {
-                        trips = parsed.map(t => {
+                    const tripsArr = parsed.trips || parsed;
+                    if (Array.isArray(tripsArr) && tripsArr.length) {
+                        trips = tripsArr.map(t => {
                             if (!t.expenses) t.expenses = [];
                             if (!t.hotels) t.hotels = [];
                             if (t.hotel && !t.hotels.length) {
@@ -1061,15 +1071,105 @@
                             if (t.expenseNote !== undefined) delete t.expenseNote;
                             return t;
                         });
-                        saveData();
-                        loadTemplates();
+                        templates = parsed.templates || loadLocalTemplates();
                         return;
                     }
                 } catch (_) {}
             }
             trips = cloneObj(DEFAULT_DATA);
-            saveData();
-            loadTemplates();
+            templates = cloneObj(DEFAULT_TEMPLATES);
+        }
+
+        function loadLocalTemplates() {
+            const raw = localStorage.getItem(TEMPLATE_KEY);
+            if (raw) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+                } catch (_) {}
+            }
+            return cloneObj(DEFAULT_TEMPLATES);
+        }
+
+        async function fetchCloudData() {
+            if (!CLOUD_ENABLED) return null;
+            try {
+                const res = await fetch(CLOUD_API_URL, { cache: 'no-store' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                if (data && data.trips) {
+                    try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); } catch (e) {}
+                    return data;
+                }
+                return {};
+            } catch (e) {
+                console.warn('[cloud] fetch failed:', e);
+                return null;
+            }
+        }
+
+        async function pushCloudData(token) {
+            if (!CLOUD_ENABLED) return { skipped: true };
+            const res = await fetch(CLOUD_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Write-Token': token },
+                body: JSON.stringify({ trips: trips, templates: templates })
+            });
+            if (res.status === 401) { const e = new Error('密码错误'); e.code = 401; throw e; }
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+        }
+
+        async function saveData() {
+            try { localStorage.setItem(CACHE_KEY, JSON.stringify({ trips: trips, templates: templates })); } catch (e) {}
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(trips));
+            if (!CLOUD_ENABLED) { setStatus(''); return; }
+            let token = sessionStorage.getItem('travel_write_token');
+            if (!token) {
+                token = prompt('请输入编辑密码（用于同步到云端）：');
+                if (token) sessionStorage.setItem('travel_write_token', token);
+            }
+            if (!token) { setStatus('💾 本地已保存'); return; }
+            try {
+                await pushCloudData(token);
+                setStatus('☁️ 已同步');
+            } catch (e) {
+                if (e.code === 401) {
+                    sessionStorage.removeItem('travel_write_token');
+                    setStatus('❌ 密码错误');
+                } else {
+                    setStatus('📴 网络异常');
+                }
+            }
+        }
+
+        async function fetchCloudData() {
+            if (!CLOUD_ENABLED) return null;
+            try {
+                const res = await fetch(CLOUD_API_URL, { cache: 'no-store' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                if (data && data.trips) {
+                    try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); } catch (e) {}
+                    return data;
+                }
+                return {};
+            } catch (e) {
+                console.warn('[cloud] fetch failed:', e);
+                return null;
+            }
+        }
+
+        async function pushCloudData(token) {
+            if (!CLOUD_ENABLED) return { skipped: true };
+            const res = await fetch(CLOUD_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Write-Token': token },
+                body: JSON.stringify({ trips: trips, templates: templates })
+            });
+            if (res.status === 401) { const e = new Error('密码错误'); e.code = 401; throw e; }
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
         }
 
         function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(trips)); }
@@ -2032,11 +2132,24 @@
         // ================================================================
         //  初始化
         // ================================================================
-        loadData();
-        renderAll();
-        console.log('🐼 熊猫旅行日记已加载！');
-        console.log(`📊 当前共 ${trips.length} 条旅行记录`);
-        console.log('💡 详情页支持自动保存，修改后无需手动保存');
+        async function bootstrap() {
+            setStatus('⏳ 同步中...');
+            const cloud = await fetchCloudData();
+            if (cloud && cloud.trips) {
+                trips = cloud.trips;
+                templates = cloud.templates || loadLocalTemplates();
+                setStatus('☁️ 已同步');
+            } else {
+                loadLocalData();
+                setStatus('📴 本地模式');
+            }
+            renderAll();
+            console.log('🐼 熊猫旅行日记已加载！');
+            console.log(`📊 当前共 ${trips.length} 条旅行记录`);
+            console.log('💡 详情页支持自动保存，修改后无需手动保存');
+        }
+
+        bootstrap();
     </script>
 </body>
 </html>
