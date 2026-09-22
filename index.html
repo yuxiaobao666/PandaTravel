@@ -875,6 +875,31 @@
             background: var(--green-300);
             border-radius: 8px;
         }
+    /* ===== 响应式：电脑端多列布局 ===== */
+    @media (min-width: 768px) {
+      .app-container { max-width: 1200px; margin: 0 auto; }
+      .trip-grid { grid-template-columns: repeat(2, 1fr); }
+      .detail-scroll { padding: 24px; }
+      .detail-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+      .detail-section { margin-bottom: 16px; }
+      .stats-grid { grid-template-columns: repeat(4, 1fr); }
+      .expense-item { grid-template-columns: 1fr 1fr 2fr auto; }
+      .entry-item { grid-template-columns: 1fr 1fr 2fr auto; }
+      .food-item { display: grid; grid-template-columns: 1fr 80px 2fr auto; gap: 8px; align-items: center; }
+      .panda-entry { display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 8px; align-items: center; }
+    }
+    @media (min-width: 1024px) {
+      .trip-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    .food-item { display: flex; flex-direction: column; gap: 6px; padding: 10px; background: var(--gray-50); border-radius: 8px; margin-bottom: 8px; }
+    .food-item input { width: 100%; }
+    @media (min-width: 768px) {
+      .food-item { flex-direction: row; align-items: center; }
+      .food-item input { flex: 1; }
+    }
+    .panda-entry { padding: 10px; background: var(--gray-50); border-radius: 8px; margin-bottom: 8px; }
+    .panda-entry input { width: 100%; }
+    .panda-notes { font-size: 12px; color: var(--gray-500); margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -1089,6 +1114,16 @@
                 } catch (_) {}
             }
             return cloneObj(DEFAULT_TEMPLATES);
+        }
+
+        function migrateTrip(t) {
+            if (!t.foodsList && t.foods && typeof t.foods === 'string') {
+                t.foodsList = t.foods.split(/[,，、]/).filter(s => s.trim()).map(s => ({
+                    name: s.trim(), rating: null, note: ''
+                }));
+            }
+            if (!t.foodsList) t.foodsList = [];
+            return t;
         }
 
         async function fetchCloudData() {
@@ -1517,7 +1552,20 @@
                 <!-- 美食 -->
                 <div class="detail-section">
                     <div class="section-title"><i class="fas fa-utensils"></i> 美食记录</div>
-                    <textarea id="f_foods" rows="2" placeholder="吃了什么好吃的？">${escHtml(t.foods || '')}</textarea>
+                    <div id="foodsContainer">
+                            ${(t.foodsList || []).map((food, idx) => `
+                                <div class="food-item" data-foodidx="${idx}">
+                                    <input class="food-name" type="text" value="${escHtml(food.name || '')}" placeholder="菜名" />
+                                    <input class="food-rating" type="number" min="1" max="5" value="${food.rating || ''}" placeholder="分" style="width:60px;" />
+                                    <input class="food-note" type="text" value="${escHtml(food.note || '')}" placeholder="备注" />
+                                    <button class="entry-remove" type="button" onclick="removeFood(${idx})">&times;</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="inline-flex mt-1">
+                            <input type="text" id="newFoodName" placeholder="菜名" style="flex:1;" />
+                            <button class="btn btn-sm btn-outline" type="button" onclick="addFood()"><i class="fas fa-plus"></i> 添加</button>
+                        </div>
                 </div>
 
                 <!-- 熊猫打卡 -->
@@ -1529,6 +1577,7 @@
                                 <span class="panda-name">🐼 ${escHtml(p.name)}</span>
                                 <span class="panda-time"><i class="far fa-clock"></i> ${escHtml(p.meetTime || '')}</span>
                                 <button class="panda-remove" type="button" onclick="removePanda(${idx})">&times;</button>
+                                <input class="panda-note-input" type="text" value="${escHtml(p.note || '')}" placeholder="备注（在干什么）" style="flex:1;" />
                             </div>
                         `).join('')}
                     </div>
@@ -1744,7 +1793,12 @@
                 }
             });
 
-            const foods = document.getElementById('f_foods')?.value || '';
+            const foodsList = Array.from(document.querySelectorAll('#foodsContainer .food-item')).map(el => ({
+                name: el.querySelector('.food-name')?.value || '',
+                rating: parseInt(el.querySelector('.food-rating')?.value) || null,
+                note: el.querySelector('.food-note')?.value || ''
+            }));
+            const foods = foodsList.map(f => f.name).join('、');
             const tips = document.getElementById('f_tips')?.value || '';
 
             return {
@@ -1757,6 +1811,7 @@
                 checklist,
                 checkedItems,
                 foods,
+                foodsList,
                 pandas,
                 expenses,
                 tips,
@@ -1893,6 +1948,32 @@
             autoSaveHandler({ type: 'change' });
         };
 
+        
+        window.addFood = function() {
+            const nameInput = document.getElementById('newFoodName');
+            const name = nameInput.value.trim();
+            if (!name) return;
+            const container = document.getElementById('foodsContainer');
+            const idx = container.children.length;
+            const div = document.createElement('div');
+            div.className = 'food-item';
+            div.dataset.foodidx = idx;
+            div.innerHTML = `
+                <input class="food-name" type="text" value="${escHtml(name)}" placeholder="菜名" />
+                <input class="food-rating" type="number" min="1" max="5" placeholder="分" style="width:60px;" />
+                <input class="food-note" type="text" placeholder="备注" />
+                <button class="entry-remove" type="button" onclick="removeFood(${idx})">&times;</button>
+            `;
+            container.appendChild(div);
+            nameInput.value = '';
+            div.querySelectorAll('input').forEach(el => el.addEventListener('input', autoSaveHandler));
+        }
+        window.removeFood = function(idx) {
+            const el = document.querySelector(`.food-item[data-foodidx="${idx}"]`);
+            if (el) el.remove();
+            autoSaveTrip();
+        }
+
         window.addPanda = function() {
             const nameInput = document.getElementById('newPandaName');
             const timeInput = document.getElementById('newPandaTime');
@@ -1909,6 +1990,7 @@
                 <span class="panda-name">🐼 ${escHtml(name)}</span>
                 <span class="panda-time"><i class="far fa-clock"></i> ${escHtml(meetTime)}</span>
                 <button class="panda-remove" type="button" onclick="removePanda(${idx})">&times;</button>
+                    <input class="panda-note-input" type="text" placeholder="备注（在干什么）" style="flex:1;" />
             `;
             container.appendChild(div);
             nameInput.value = '';
@@ -2135,7 +2217,7 @@
             setStatus('⏳ 同步中...');
             const cloud = await fetchCloudData();
             if (cloud && cloud.trips) {
-                trips = cloud.trips;
+                trips = (cloud.trips || []).map(migrateTrip);
                 templates = cloud.templates || loadLocalTemplates();
                 setStatus('☁️ 已同步');
             } else {
